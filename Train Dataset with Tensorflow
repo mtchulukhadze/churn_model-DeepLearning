@@ -1,0 +1,61 @@
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, BatchNormalization, Dropout, GaussianNoise
+
+scaler = MinMaxScaler()
+
+data = pd.read_csv(r'C:\Users\mikheilitchulukhadze\PycharmProjects\pythonProject1\churn_model\Churn_Dataset_1 3.csv')
+
+data = data[['PersonId', 'Age', 'income', 'Gender', 'Amount',
+       'InterestRate', 'Duration', 'Closed', 'RateDiscount', 'AmountUp',
+       'CreditCard', 'CardStatus', 'CreditCount', 'transaction_count',
+       'Mortgage', 'MobileBancking', 'Scoring', 'Tenure', 'Balance',
+       'ProducTNumber', 'CreditInfoClicks1', 'CreditInfoClicks3',
+       'CreditInfoClicks6', 'CreditScore',  'SumOutstandings',
+       'ProbabilityDefault', 'ForeignTransactions', 'FeesPaid', 'Expat',
+       'CSAT', 'NPS', 'Class']]
+
+# data = pd.get_dummies(data, columns=data)
+
+y = data['Class']
+X = data.drop('Class', axis=1)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+
+# Tensorflow DeepLearning
+model = Sequential()
+model.add(Dense(units=200, activation='relu', input_dim=X_train.shape[1]))
+model.add(BatchNormalization())
+model.add(Dense(units=100, activation='relu'))
+model.add(BatchNormalization())
+model.add(Dense(units=50, activation='relu'))
+# model.add(Dropout(rate=0.3))
+model.add(Dense(units=40, activation='relu'))
+model.add(GaussianNoise(stddev=0.99))
+model.add(Dense(units=30, activation='relu'))
+
+
+model.add(Dense(units=1, activation='sigmoid'))
+
+model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+
+model.fit(X_train, y_train, batch_size=30, epochs=100, validation_data=(X_test, y_test), verbose=1)
+
+# model saving
+model.save('churn_model.h5')
+
+X_full = scaler.transform(data.drop('Class', axis=1))
+y_pred_full = model.predict(X_full)
+y_pred_binary_full = (y_pred_full > 0.5).astype(int)
+
+comparison_df = pd.DataFrame({'Actual': data['Class'].values, 'Predicted': y_pred_binary_full.flatten()})
+
+print(comparison_df.to_excel(r'C:\Users\mikheilitchulukhadze\PycharmProjects\pythonProject1\churn_model\predicted_data_22_06.xlsx'))
+
+# check
+print(f"{(comparison_df[comparison_df['Actual'] != comparison_df['Predicted']].shape[0]) / data.shape[0] * 100} %")
