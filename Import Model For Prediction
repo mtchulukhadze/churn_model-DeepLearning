@@ -1,0 +1,40 @@
+# import model to future training
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import accuracy_score
+from tensorflow.keras.models import load_model
+
+scaler = MinMaxScaler()
+
+model = load_model('churn_model/churn_model.h5')
+data = pd.read_csv(r'C:\Users\mikheilitchulukhadze\PycharmProjects\pythonProject1\churn_model\Churn_Dataset_1 3.csv')
+
+data = data[['PersonId', 'Age', 'income', 'Gender', 'Amount',
+       'InterestRate', 'Duration', 'Closed', 'RateDiscount', 'AmountUp',
+       'CreditCard', 'CardStatus', 'CreditCount', 'transaction_count',
+       'Mortgage', 'MobileBancking', 'Scoring', 'Tenure', 'Balance',
+       'ProducTNumber', 'CreditInfoClicks1', 'CreditInfoClicks3',
+       'CreditInfoClicks6', 'CreditScore',  'SumOutstandings',
+       'ProbabilityDefault', 'ForeignTransactions', 'FeesPaid', 'Expat',
+       'CSAT', 'NPS', 'Class']]
+
+y = data['Class']
+X = data.drop('Class', axis=1)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+X_full = scaler.transform(X)
+
+y_pred_full = model.predict(X_full)
+
+y_pred_binary_full = (y_pred_full > 0.5).astype(int)
+
+accuracy = accuracy_score(y, y_pred_binary_full)
+comparison_df = pd.DataFrame({'Actual': y.values, 'Predicted': y_pred_binary_full.flatten()})
+
+# check
+print(f"Accuracy: {accuracy * 100} %")
+print(f"{(comparison_df[comparison_df['Actual'] != comparison_df['Predicted']].shape[0]) / data.shape[0] * 100} %")
