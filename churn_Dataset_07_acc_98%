@@ -1,0 +1,123 @@
+# --------------------------------------------------------------------- 98 % accuracy
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from keras.models import Sequential
+from keras.layers import Dense, BatchNormalization, GaussianNoise, Dropout
+from keras.optimizers import SGD
+
+# Load your data
+data = pd.read_csv(r"D:\Data\AI & ML\churnModel_New\customer_churn_data.csv")
+
+# Preprocess your data
+data['Churn'] = data['Churn'].apply(lambda x: 1 if x == 'Yes' else 0)
+data['customerID'] = data['customerID'].apply(lambda x: x[4:])
+data['TotalCharges'] = pd.to_numeric(data['TotalCharges'], errors='coerce')
+data['TotalCharges'].fillna(data['TotalCharges'].mean(), inplace=True)
+
+categorical_cols = ['gender', 'Partner', 'Dependents', 'PhoneService', 'MultipleLines',
+                    'InternetService', 'OnlineSecurity', 'OnlineBackup', 'DeviceProtection',
+                    'TechSupport', 'StreamingTV', 'StreamingMovies', 'Contract',
+                    'PaperlessBilling', 'PaymentMethod']
+data = pd.get_dummies(data, columns=categorical_cols)
+
+# Define X and y
+y = data['Churn']
+X = data.drop('Churn', axis=1)
+
+# Split into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Scale your data
+scaler = MinMaxScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Convert y_train and y_test to numpy arrays of float type
+y_train = np.array(y_train).astype('float32')
+y_test = np.array(y_test).astype('float32')
+
+# Define your TensorFlow/Keras model
+model = Sequential()
+model.add(Dense(units=512, activation='relu', input_dim=X_train.shape[1]))
+model.add(BatchNormalization())
+model.add(Dense(units=256, activation='relu'))
+model.add(BatchNormalization())
+model.add(Dense(units=128, activation='relu'))
+model.add(BatchNormalization())
+model.add(Dense(units=64, activation='relu'))
+model.add(Dense(units=32, activation='relu'))
+model.add(Dropout(0.3))
+model.add(Dense(units=1, activation='sigmoid'))
+
+# Compile your model
+optimizer = SGD(learning_rate=0.01, momentum=0.9)
+model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
+# Fit your model
+model.fit(X_train, y_train, batch_size=64, epochs=150, validation_data=(X_test, y_test))
+
+model.save('churnModel_New/customer_churn_model.h5')
+
+X_full = slacer.transform(data.drop('Churn', axis=1))
+y_pred_full = model.predict(X_full)
+y_pred_binary_full = (y_pred_full > 0.5).astype(int)
+
+comparison_df = pd.DataFrame({'Actual': data['Churn'].values, 'Predicted': y_pred_binary_full.flatten()})
+print(comparison_df.to_excel('churnModel_New/churnModel.xlsx'))
+# check
+print(f"{(comparison_df[comparison_df['Actual'] != comparison_df['Predicted']].shape[0]) / data.shape[0] * 100} %")
+
+
+# ----------------------------------------------------- use model
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+from keras.models import load_model
+
+# Load your saved model
+model = load_model('churnModel_New/customer_churn_model.h5')
+
+# Load the new dataset to predict
+new_data = pd.read_csv(r"D:\Data\AI & ML\churnModel_New\customer_churn_data_to_predict.csv")
+# Preprocess your new data (similar to training data preprocessing)
+
+# Convert 'Churn' column to binary
+new_data['Churn'] = new_data['Churn'].apply(lambda x: 1 if x == 'Yes' else 0)
+
+# Adjust 'customerID' if needed
+new_data['customerID'] = new_data['customerID'].apply(lambda x: x[4:])
+
+# Handle 'TotalCharges' missing values
+new_data['TotalCharges'] = pd.to_numeric(new_data['TotalCharges'], errors='coerce')
+new_data['TotalCharges'].fillna(new_data['TotalCharges'].mean(), inplace=True)
+
+# Perform one-hot encoding for categorical variables
+categorical_cols = ['gender', 'Partner', 'Dependents', 'PhoneService', 'MultipleLines',
+                    'InternetService', 'OnlineSecurity', 'OnlineBackup', 'DeviceProtection',
+                    'TechSupport', 'StreamingTV', 'StreamingMovies', 'Contract',
+                    'PaperlessBilling', 'PaymentMethod']
+new_data = pd.get_dummies(new_data, columns=categorical_cols)
+
+# Extract X_new for prediction, excluding 'Churn' column if present
+X_new = new_data.drop(columns='Churn')
+
+# Scale your new data using the same MinMaxScaler
+scaler = MinMaxScaler()
+X_new = scaler.fit_transform(X_new)
+
+# Make predictions
+predictions = model.predict(X_new)
+
+# Assuming predictions are probabilities, convert them to binary labels
+predicted_labels = (predictions > 0.5).astype(int).flatten()
+
+# Add predicted labels to the new_data DataFrame if needed
+new_data['Predicted_Churn'] = predicted_labels
+
+# Optionally, you can save the predictions to a CSV file
+new_data.to_excel(r"D:\Data\AI & ML\churnModel_New\predicted_churn1.xlsx", index=False)
+
+# Display or further analyze the predicted results
+print(new_data.head())
